@@ -83,7 +83,7 @@ static int kvm_cpu__set_lint(struct kvm_cpu *vcpu)
 	if (ioctl(vcpu->vcpu_fd, KVM_GET_LAPIC, &lapic))
 		return -1;
 
-	lapic.lvt_lint0.delivery_mode = APIC_MODE_EXTINT;
+	lapic.lvt_lint0.delivery_mode = APIC_MODE_EXTINT & APIC_LVT_MASKED;
 	lapic.lvt_lint1.delivery_mode = APIC_MODE_NMI;
 
 	return ioctl(vcpu->vcpu_fd, KVM_SET_LAPIC, &lapic);

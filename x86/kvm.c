@@ -32,6 +32,15 @@ struct kvm_ext kvm_req_ext[] = {
 	{ DEFINE_KVM_EXT(KVM_CAP_HLT) },
 	{ DEFINE_KVM_EXT(KVM_CAP_IRQ_INJECT_STATUS) },
 	{ DEFINE_KVM_EXT(KVM_CAP_EXT_CPUID) },
+	{ DEFINE_KVM_EXT(KVM_CAP_X2APIC_API) },
+	{ DEFINE_KVM_EXT(KVM_CAP_X86_DISABLE_EXITS) },
+	{ DEFINE_KVM_EXT(KVM_CAP_STEAL_TIME) },
+	{ DEFINE_KVM_EXT(KVM_CAP_KVMCLOCK_CTRL) },
+	{ DEFINE_KVM_EXT(KVM_CAP_XSAVE) },
+	{ DEFINE_KVM_EXT(KVM_CAP_SET_BOOT_CPU_ID) },
+	{ DEFINE_KVM_EXT(KVM_CAP_ASYNC_PF) },
+	{ DEFINE_KVM_EXT(KVM_CAP_SPLIT_IRQCHIP) },
+	{ DEFINE_KVM_EXT(KVM_CAP_NESTED_STATE) },
 	{ 0, 0 }
 };
 
@@ -121,13 +130,15 @@ void kvm__init_ram(struct kvm *kvm)
 /* Arch-specific commandline setup */
 void kvm__arch_set_cmdline(char *cmdline, bool video)
 {
-	strcpy(cmdline, "noapic noacpi pci=conf1 reboot=k panic=1 i8042.direct=1 "
+	strcpy(cmdline, "noacpi pci=conf1 reboot=k panic=1 i8042.direct=1 "
 				"i8042.dumbkbd=1 i8042.nopnp=1");
 	if (video)
 		strcat(cmdline, " video=vesafb");
 	else
 		strcat(cmdline, " earlyprintk=serial i8042.noaux=1");
 }
+
+int mmapfd = -1;
 
 /* Architecture-specific KVM init */
 void kvm__arch_init(struct kvm *kvm, const char *hugetlbfs_path, u64 ram_size)
@@ -139,15 +150,22 @@ void kvm__arch_init(struct kvm *kvm, const char *hugetlbfs_path, u64 ram_size)
 	if (ret < 0)
 		die_perror("KVM_SET_TSS_ADDR ioctl");
 
+
 	ret = ioctl(kvm->vm_fd, KVM_CREATE_PIT2, &pit_config);
 	if (ret < 0)
 		die_perror("KVM_CREATE_PIT2 ioctl");
 
+//	mmapfd = open("/ramfs/ram", O_RDWR);
+//	if (mmapfd < 0)
+//		die_perror("cant open /ramfs/ram");
+
 	if (ram_size < KVM_32BIT_GAP_START) {
 		kvm->ram_size = ram_size;
 		kvm->ram_start = mmap_anon_or_hugetlbfs(kvm, hugetlbfs_path, ram_size);
+		//kvm->ram_start = mmap(NULL, ram_size, PROT_RW, MAP_SHARED, mmapfd, 0);
 	} else {
 		kvm->ram_start = mmap_anon_or_hugetlbfs(kvm, hugetlbfs_path, ram_size + KVM_32BIT_GAP_SIZE);
+		//kvm->ram_start = mmap(NULL, ram_size + KVM_32BIT_GAP_SIZE, PROT_RW, MAP_SHARED, mmapfd, 0);
 		kvm->ram_size = ram_size + KVM_32BIT_GAP_SIZE;
 		if (kvm->ram_start != MAP_FAILED)
 			/*
